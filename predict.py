@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from datetime import timedelta
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_absolute_percentage_error
 
 def prepare_data(data):
     x = data[['Open','High','Low','Volume']]
@@ -28,31 +28,15 @@ def split_data(x_scaled, y_scaled, train_size):
     X_train, X_test, y_train, y_test = train_test_split(x_scaled, y_scaled, train_size=train_size, shuffle=False)
     return X_train, X_test, y_train, y_test
 
-# def rbf_kernel(X, X2, gamma):
-#     X = np.asarray(X)
-#     X2 = np.asarray(X2)
-#     sq_dists = np.sum((X[:, np.newaxis, :] - X2[np.newaxis, :, :])**2, axis=2)
-#     return np.exp(-gamma * sq_dists)
-
-# def svr_train(X_train, y_train, gamma, C):
-#     """ Train an SVR model. """
-#     lambda_reg = 1 / C
-#     K_train = rbf_kernel(X_train, X_train, gamma)
-#     K_train += lambda_reg * np.eye(K_train.shape[0])
-#     alpha = np.linalg.solve(K_train, y_train)
-#     return alpha
-# def svr_predict(X_train, X_test, alpha, gamma):
-    """ Predict using the trained SVR model. """
-    K_test = rbf_kernel(X_test, X_train, gamma)
-    y_pred = K_test.dot(alpha)
-    return y_pred
-
 class SVR_Model:
-    def __init__(self, gamma, C):
+    def __init__(self, gamma, C, epsilon = 0.01, max_iter=1000):
         self.gamma = gamma  # Parameter untuk kernel RBF
         self.C = C          # Parameter regularisasi
+        self.epsilon = epsilon
         self.alpha = None   # Koefisien alpha akan disimpan setelah pelatihan
+        self.alpha_star = None
         self.X_train = None # Menyimpan data pelatihan untuk digunakan dalam prediksi
+        self.max_iter = max_iter
 
     def rbf_kernel(self, X, X2):
         """ Calculate the RBF kernel between two datasets. """
@@ -62,27 +46,48 @@ class SVR_Model:
         return np.exp(-self.gamma * sq_dists)
 
     def train(self, X_train, y_train):
-        """ Train the SVR model using the provided training dataset. """
-        self.X_train = X_train  # Menyimpan X_train untuk digunakan di predict
-        lambda_reg = 1 / self.C
-        K_train = self.rbf_kernel(X_train, X_train)
-        K_train += lambda_reg * np.eye(K_train.shape[0])
-        self.alpha = np.linalg.solve(K_train, y_train)
+            self.X_train = X_train
+            n_samples = X_train.shape[0]
+            y_train = np.asarray(y_train).flatten()
+            self.alpha = np.zeros(n_samples)
+            self.alpha_star = np.zeros(n_samples)
+            K_train = self.rbf_kernel(X_train, X_train)
+
+            for iteration in range(self.max_iter):
+                alpha_prev = np.copy(self.alpha)
+                alpha_star_prev = np.copy(self.alpha_star)
+                
+                for i in range(n_samples):
+                    Ei = y_train[i] - np.dot((self.alpha - self.alpha_star), K_train[i])
+                    delta_alpha = min(max(self.gamma * (Ei - self.epsilon), -self.alpha[i]), self.C - self.alpha[i])
+                    delta_alpha_star = min(max(self.gamma * (-Ei - self.epsilon), -self.alpha_star[i]), self.C - self.alpha_star[i])
+    
+                    self.alpha[i] += delta_alpha
+                    self.alpha_star[i] += delta_alpha_star
+
+                # Check convergence
+                norm_alpha_diff = np.linalg.norm(self.alpha - alpha_prev)
+                norm_alpha_star_diff = np.linalg.norm(self.alpha_star - alpha_star_prev)
+                print(f"Iteration {iteration}, norm_alpha_diff: {norm_alpha_diff}, norm_alpha_star_diff: {norm_alpha_star_diff}")
+                if norm_alpha_diff < self.epsilon and norm_alpha_star_diff < self.epsilon: 
+                    print(f"Converged after {iteration} iterations.")
+                    break
+                
 
     def predict(self, X_test):
         """ Predict using the trained SVR model. """
-        if self.alpha is None:
+        if self.alpha is None or self.alpha_star is None:
             raise Exception("Model has not been trained yet.")
         K_test = self.rbf_kernel(X_test, self.X_train)
-        return K_test.dot(self.alpha)
+        return K_test.dot(self.alpha - self.alpha_star)
 
 def future_predict(model, data, x_scaled):
-    current_features = x_scaled[-20:]
+    current_features = x_scaled[-30:]
     future_predictions = []
     
 
     for i in range(7):
-        next_day_pred = model.predict(current_features)[0, 0]
+        next_day_pred = model.predict(current_features)[0]
         future_predictions.append(next_day_pred)
         next_day_features = np.roll(current_features, -1, axis=0)
         next_day_features[-1] = np.append(next_day_features[-2, 1:], next_day_pred)
@@ -93,9 +98,14 @@ def future_predict(model, data, x_scaled):
     data['Date'] = data['Date'].dt.date
     last_date = data['Date'].iloc[-1]
     future_dates = [last_date + timedelta(days=i) for i in range(1, 8)]
+
+    if future_predictions[-1] > future_predictions[0]:
+        price_movement = "rise"
+    elif future_predictions[-1] < future_predictions[0]:
+        price_movement = "drop"
     
 
-    return future_predictions, future_dates
+    return future_predictions, future_dates, price_movement
 
 
 def train_and_predict(data, split_ratio, gamma_value, c_value):
@@ -104,22 +114,11 @@ def train_and_predict(data, split_ratio, gamma_value, c_value):
     y_scaled, min_y, max_y = preprocess_data_y(y)
     X_train, X_test, y_train, y_test = split_data(x_scaled, y_scaled, train_size=split_ratio)
 
-    model = SVR_Model(gamma=gamma_value, C=c_value)
+    model = SVR_Model (gamma=gamma_value, C=c_value)
     model.train(X_train, y_train)
     predictions = model.predict(X_test)
 
-    future_predictions, future_dates = future_predict(model, data, x_scaled)
-
-
-    #Evaluate the Model
-
-    rmse = np.sqrt(mean_squared_error(y_test, predictions))
-    mape = mean_absolute_percentage_error(y_test, predictions) * 100
-    target_range = np.max(y_test) - np.min(y_test)
-    # accuracy = (1 - (rmse / target_range)) * 100
-    accuracy = (100 - mape)
-
- 
+    future_predictions, future_dates, price_movement = future_predict(model, data, x_scaled)
 
     predictions = np.array(predictions).flatten()  # Mengubah ke array dan memastikan format flat
     y_test = np.array(y_test).flatten()
@@ -133,4 +132,15 @@ def train_and_predict(data, split_ratio, gamma_value, c_value):
     y_test = y_test * (max_y - min_y) + min_y
     future_predictions = future_predictions * (max_y - min_y) + min_y
 
-    return predictions, y_test, accuracy, rmse, future_predictions, future_dates
+    #Evaluate the Model
+    # rmse = np.sqrt(mean_squared_error(y_test, predictions))
+    mape = mean_absolute_percentage_error(y_test, predictions) * 100
+    # target_range = np.max(y_test) - np.min(y_test)
+    # accuracy = (1 - (rmse / target_range)) * 100
+    accuracy = (100 - mape)
+
+ 
+
+   
+
+    return predictions, y_test, accuracy, mape, future_predictions, future_dates, price_movement
