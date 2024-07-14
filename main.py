@@ -41,13 +41,13 @@ def main():
     st.subheader("Choose the C Parameter")
     c_value = st.selectbox(
     ":orange[C is regularization parameter that indicates how much you want to avoid misclassifying each training example]",
-    (0.1, 1, 10,))
+    (0.1, 1, 10))
 
     # Memilih parameter gamma
     st.subheader("Choose the Gamma Parameter")
     gamma_value = st.selectbox(
     ":orange[Gamma parameter defines how far the influence of a single training example reaches]",
-    (0.1, 1, 10))
+    (0.01, 0.1, 1))
 
     st.subheader("Choose the Train Size")
     split_ratio = st.slider("Select the data split ratio", 10, 90, 80, 10, format="%d%%") / 100
@@ -81,14 +81,14 @@ def main():
             #Evaluate the Model
             st.subheader('Parameters Use')
             col3, col4, col5 = st.columns(3)
-            col3.metric(":blue[C Value]", f"{c_value}")
-            col4.metric(":blue[Gamma Parameter]", f"{gamma_value}")
-            col5.metric(":blue[Train Size]", f"{split_ratio * 100:.0f}%")
+            col3.metric(":orange[C Value]", f"{c_value}")
+            col4.metric(":orange[Gamma Parameter]", f"{gamma_value}")
+            col5.metric(":orange[Train Size]", f"{split_ratio * 100:.0f}%")
 
             st.subheader("Model Accuracy")
             col1, col2 = st.columns(2)
-            col1.metric(":green[MAPE]", f"{mape:.5f}")
-            col2.metric(":green[Accuracy]", f"{accuracy:.2f}%")
+            col1.metric(":blue[MAPE]", f"{mape:.4f}%")
+            col2.metric(":blue[Accuracy]", f"{accuracy:.2f}%")
             st.markdown('')
 
             # Convert to right index
@@ -118,7 +118,7 @@ def main():
                 'Predicted Close': future_predictions})
             st.subheader("Predicted Bitcoin Close Prices for the Next 7 Days")
             st.dataframe(future_data, use_container_width=True, hide_index=True)
-            st.subheader(f"Price will likely :orange[{price_movement}]")
+            st.subheader(f"Price will likely to: :blue[{price_movement}]")
 
                     
 if __name__ == '__main__':
