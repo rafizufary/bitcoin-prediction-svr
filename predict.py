@@ -4,6 +4,7 @@ from datetime import timedelta
 from sklearn.model_selection import train_test_split
 
 def variable_choose(data):
+    # Penentuan Variabel
     x = data[['Open','High','Low','Close']]
     y = data[['Close']]
 
@@ -30,25 +31,25 @@ def split_data(x_scaled, y_scaled, train_size):
 class SVR_Model:
     def __init__(self, gamma, C, epsilon = 0.01, max_iter=1000):
         self.gamma = gamma  # Parameter untuk kernel RBF
-        self.C = C          # Parameter regularisasi
+        self.C = C          # Parameter C
         self.epsilon = epsilon
-        self.alpha = None   # Koefisien alpha akan disimpan setelah pelatihan
+        self.alpha = None
         self.alpha_star = None
-        self.X_train = None # Menyimpan data pelatihan untuk digunakan dalam prediksi
+        self.X_train = None
         self.max_iter = max_iter
 
     def rbf_kernel(self, X, X2):
-        """ Calculate the RBF kernel between two datasets. """
+        # Perhitungan Kernel RBF
         X = np.asarray(X)
         X2 = np.asarray(X2)
-        sq_dists = np.sum((X[:, np.newaxis, :] - X2[np.newaxis, :, :])**2, axis=2)
-        return np.exp(-self.gamma * sq_dists)
+        sq_dists = np.sum((X[:, np.newaxis, :] - X2[np.newaxis, :, :])**2, axis=2) # Menghitung matriks jarak kuadrat 
+        return np.exp(-self.gamma * sq_dists) # Menghitung nilai eksponen untuk mendapat nilai kernel
 
     def train(self, X_train, y_train):
             self.X_train = X_train
-            n_samples = X_train.shape[0]
+            n_samples = X_train.shape[0] # Mengambil jumlah data sampel
             y_train = np.asarray(y_train).flatten()
-            self.alpha = np.zeros(n_samples)
+            self.alpha = np.zeros(n_samples) # Inisialisasi alpha sebanyak jumlah sampel
             self.alpha_star = np.zeros(n_samples)
             K_train = self.rbf_kernel(X_train, X_train)
 
@@ -64,7 +65,7 @@ class SVR_Model:
                     self.alpha[i] += delta_alpha
                     self.alpha_star[i] += delta_alpha_star
 
-                # Check convergence
+                # Cek Konvergensi
                 alpha_diff = np.linalg.norm(self.alpha - alpha_prev)
                 alpha_star_diff = np.linalg.norm(self.alpha_star - alpha_star_prev)
                 print(f"Iteration {iteration}, norm_alpha_diff: {alpha_diff}, norm_alpha_star_diff: {alpha_star_diff}")
@@ -74,14 +75,13 @@ class SVR_Model:
                 
 
     def predict(self, X_test):
-        """ Predict using the trained SVR model. """
         if self.alpha is None or self.alpha_star is None:
             raise Exception("Model has not been trained yet.")
         K_test = self.rbf_kernel(X_test, self.X_train)
-        return K_test.dot(self.alpha - self.alpha_star)
+        alpha_coef = self.alpha - self.alpha_star
+        return np.dot(K_test, alpha_coef)
     
     def predict_future(self, current_features):
-        """Predict using the trained SVR model."""
         if self.alpha is None or self.alpha_star is None:
             raise Exception("Model has not been trained yet.")
         K_future = self.rbf_kernel(current_features, self.X_train)
@@ -89,15 +89,14 @@ class SVR_Model:
         return np.dot(K_future, alpha_coef)
 
 def future_predict(model, data, y_scaled):
-    current_features = y_scaled[-4:].values.reshape(1,-1)
+    current_features = y_scaled[-4:].values.reshape(1,-1) #Mengambil nilai Close 4 hari terakhir untuk menjadi fitur
     future_predictions = []
 
     for i in range(7):
-        next_day_pred = model.predict_future(current_features)
-        future_predictions.append(next_day_pred)
-        next_day_features = np.roll(current_features, -1, axis=0)
-        next_day_features[-1] = np.append(next_day_features[-1, 1:], next_day_pred)
-        current_features = next_day_features
+        next_day_pred = model.predict_future(current_features) # Prediksi 1 hari ke depan
+        future_predictions.append(next_day_pred) # Simpan hasil prediksi ke future_predictions
+        current_features = np.roll(current_features, -1) 
+        current_features[0, -1] = next_day_pred
 
     # Prepare data for dynamic prediction
     data['Date'] = pd.to_datetime(data['Date'])
@@ -120,6 +119,7 @@ def train_and_predict(data, split_ratio, gamma_value, c_value):
     y_scaled, min_y, max_y = preprocess_data_y(y)
     X_train, X_test, y_train, y_test = split_data(x_scaled, y_scaled, train_size=split_ratio)
 
+    # Prediksi model
     model = SVR_Model (gamma=gamma_value, C=c_value)
     model.train(X_train, y_train)
     predictions = model.predict(X_test)
@@ -133,17 +133,13 @@ def train_and_predict(data, split_ratio, gamma_value, c_value):
     min_y = float(min_y.iloc[0])
     max_y = float(max_y.iloc[0])
 
-    # Denormalisasi data untuk mengembalikan ke nilai asli
     predictions = predictions * (max_y - min_y) + min_y
     y_test = y_test * (max_y - min_y) + min_y
     future_predictions = future_predictions * (max_y - min_y) + min_y
 
-    #Evaluate the Model
+    # Evaluasi model
     mape = np.mean(np.abs((y_test - predictions) / y_test)) * 100
     accuracy = (100 - mape)
 
  
-
-   
-
     return predictions, y_test, accuracy, mape, future_predictions, future_dates, price_movement
