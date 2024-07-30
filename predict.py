@@ -95,8 +95,8 @@ def future_predict(model, data, y_scaled):
     for i in range(7):
         next_day_pred = model.predict_future(current_features) # Prediksi 1 hari ke depan
         future_predictions.append(next_day_pred) # Simpan hasil prediksi ke future_predictions
-        current_features = np.roll(current_features, -1) 
-        current_features[0, -1] = next_day_pred
+        current_features = np.roll(current_features, -1) # Geser data ke kiri 1 kali
+        current_features[0, -1] = next_day_pred # Isi data terakhir dengan data prediksi terbaru
 
     # Prepare data for dynamic prediction
     data['Date'] = pd.to_datetime(data['Date'])

@@ -38,7 +38,7 @@ def main():
     # Memilih Paramater C
     st.subheader("Choose the C Parameter")
     c_value = st.selectbox(
-    ":orange[C is regularization parameter that indicates how much you want to avoid misclassifying each training example]",
+    ":orange[C is regularization parameter that serves as the penalty limit for tolerating the error of a prediction.]",
     (0.1, 1, 10))
 
     # Memilih parameter gamma
