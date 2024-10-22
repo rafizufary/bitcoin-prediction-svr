@@ -23,6 +23,7 @@ def display_data(data):
     data.reset_index(inplace=True)
     data.index = data.index + 1
     data['Date'] = data['Date'].dt.date
+    data.rename(columns={'date': 'Date'}, inplace=True)
     st.dataframe(data, use_container_width=True)
     st.line_chart(data[['Date', 'Close']], x='Date', y='Close', color=["#F3BA2F"])
 
