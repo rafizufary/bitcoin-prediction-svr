@@ -20,7 +20,7 @@ def fetch_data(start_date, end_date):
 
 def display_data(data):
     st.subheader('Bitcoin Price History')
-    # data.reset_index(inplace=True)
+    data.reset_index(inplace=True)
     # data.index = data.index + 1
     # data['Date'] = data['Date'].dt.date
     st.dataframe(data, use_container_width=True)
