@@ -8,7 +8,6 @@ from predict import train_and_predict
 st.set_page_config(
     page_title="Bitcoin Price Prediction with SVR",
     page_icon="🪙",
-    layout="centered",
     # menu_items={
     #     'Get Help': 'https://www.extremelycoolapp.com/help',
     #     'Report a bug': "https://www.extremelycoolapp.com/bug",
