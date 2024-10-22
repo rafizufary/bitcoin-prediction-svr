@@ -14,7 +14,7 @@ def preprocess_data_x(x):
     min_x = x.min()
     max_x = x.max()
     x_scaled = (x - min_x) / (max_x - min_x)
-
+    
     return x_scaled, min_x, max_x
 
 def preprocess_data_y(y):
