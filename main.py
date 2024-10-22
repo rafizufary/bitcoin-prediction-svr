@@ -5,6 +5,16 @@ from datetime import datetime, timedelta
 import time
 from predict import train_and_predict
 
+st.set_page_config(
+    page_title="Bitcoin Price Prediction with SVR",
+    page_icon="🪙",
+    layout="wide",
+    # menu_items={
+    #     'Get Help': 'https://www.extremelycoolapp.com/help',
+    #     'Report a bug': "https://www.extremelycoolapp.com/bug",
+    #     'About': "# This is a header. This is an *extremely* cool app!"
+    # }
+)
 
 st.title("Bitcoin Price Prediction")
 st.markdown("Web to predict the movement of bitcoin :coin: price based on chosen parameters.")
