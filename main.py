@@ -22,7 +22,6 @@ def display_data(data):
     st.subheader('Bitcoin Price History')
     data.reset_index(inplace=True)
     data.index = data.index + 1
-    data.rename(columns={ 'index' : 'Date'}, inplace=True)
     data['Date'] = data['Date'].dt.date
     st.dataframe(data, use_container_width=True)
     st.line_chart(data[['Date', 'Close']], x='Date', y='Close', color=["#F3BA2F"])
