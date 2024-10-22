@@ -2,4 +2,4 @@ streamlit
 pandas
 yfinance
 numpy
-sckit-learn
+scikit-learn
